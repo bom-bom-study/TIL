@@ -10,22 +10,22 @@ public class UserDaoTest {
     public static void main(String[] args) throws SQLException {
         ApplicationContext context =new GenericXmlApplicationContext("ApplicationContext.xml");
 
-        UserDao dao =context.getBean("userDao", UserDao.class);
+        UserDao dao = context.getBean("userDao", UserDao.class);
 
         User user =new User(); 
         user.setld("user"); 
         user.setName("백기선"); 
         user.setPassword("married");
         
-        dao .add(user);
+        dao.add(user);
 
         System.out.println(user.getId() + " 등록 성공");
         
-        User user2 =dao.get(user.getld()); 
-        System .out .println(user2 .getName()); 
-        System .out.println(user2 .getPassword());
+        User user2 = dao.get(user.getId()); 
+        System.out.println(user2.getName()); 
+        System.out.println(user2.getPassword());
 
-        System.out .println(user2 .getld() + " 조회 성공");
+        System.out.println(user2.getId() + " 조회 성공");
     }
 }
 ```
@@ -36,16 +36,16 @@ public class UserDaoTest {
     - 테스트 결과를 콘솔에 출력
     - 에러가 없는 경우 콘솔에 성공 메시지 출력
 
-1. 웹을 통한 DAO 테스트 방법의 문제점
+1. 웹을 통한 DAO 테스트 방법의 문제점  
 : DAO 뿐만 아니라 서비스 클래스, 컨트롤러, 뷰 등 모든 레이어의 기능을 다 만들고 나서야 테스트가 가능하다. 또한 테스트 해야 하는 DAO의 문제가 아니라 다른 코드 때문에 에러가 나거나 테스트가 실패할 수 있다.
 
-2. 작은 단위의 테스트 (Unit test)
+2. 작은 단위의 테스트 (Unit test)  
 : 테스트하고자 하는 대상이 명확하다면 그 대상에만 집중해서 테스트해야 한다. 한꺼번에 많은 것을 테스트하면 수행 과정도 복잡해지고, 오류 발생 시 정확한 원인을 찾기 힘들다. 테스트의 관심이 다르다면 테스트할 대상을 분리하고 집중해서 접근해야 하다. 개발자가 설계하고 만든 코드가 원래 의도한 대로 동작하는지 빨리 확인하기 위해서 수행한다. 확인의 대상과 조건이 간단하고 명확할수록 좋다.
 
-3. 자동수행 테스트 코드
+3. 자동수행 테스트 코드  
 : 테스트는 자동으로 수행되도록 코드로 만들어지는 것이 중요하다. 자주 반복할 수 있고, 빠르게 테스트를 실행할 수 있기 때문에 필요하다. 
 
-4. 지속적인 개선과 점진적인 개발을 위한 테스트
+4. 지속적인 개선과 점진적인 개발을 위한 테스트  
 : 새로운 기능에 대한 동작을 확인할 수 있고, 기존에 만들어뒀던 기능들이 새로운 기능이 추가되며 수정한 코드에 영향을 받지 않고 계속해서 잘 동작하는지 확인 가능
 
 
@@ -58,13 +58,13 @@ public class UserDaoTest {
 ---
 #### 2.2.1 테스트 검증의 자동화
 #### 2.2.2 테스트의 효율적인 수행과 결과 관리
-1. JUnit 테스트로 전환
+1. JUnit 테스트로 전환. 
 JUnit : 자바 테스팅 프레임워크. 프레임워크이므로 개발자가 만든 클래스의 오브젝트를 생성하고 실행하는 일이 프레임워크에 의해 진행되므로 main() 메소드가 필요없고 오브젝트를 만들어서 실행시키는 코드를 만들 필요도 없다. 
 
-2. 테스트 메소드 전환
+2. 테스트 메소드 전환  
 테스트가 main() 메소드로 만들어졌다는 건 제어권을 직접 갖는다는 의미이므로 main()에 있던 테스트 코드를 일반 메소드로 옮겨야 한다. JUnit 프레임워크가 요구하는 조건은 메소드가 public으로 선언되어야 하고, @Test 어노테이션이 필요하다.
 
-3. 검증 코드 전환
+3. 검증 코드 전환  
 테스트 결과를 검증할 때 if/else 대신 assertThat이라는 static method로 사용하면 된다.
 ``` java
 if(!user.getName().equals(user2.getName())) {...}
@@ -220,7 +220,7 @@ public class UserDaoTest {
     @Test
     public void count() throws SQLException { ... }
 
-    @Test(expected=타IptyResultDataAccessException.class)
+    @Test(expected=EmptyResultDataAccessException.class)
     public void getUserFailure() throws SQLException { ... }
 }
 ```
@@ -303,9 +303,11 @@ cf) 인터페이스를 두고 DI를 적용해야 하는 이유
 cf) 침투적 기술과 비침투적 기술
 ```
 - 침투적 기술 (invasive)
-    : 기술을 적용했을 때 어플리케이션 코드에 기술 관련 API가 등장하거나, 특정 인터페이스나 클래스를 사용하도록 강제하는 기술. 어플리케이션 코드가 해당 기술에 종속됨.
+    : 기술을 적용했을 때 어플리케이션 코드에 기술 관련 API가 등장하거나, 특정 인터페이스나 클래스를 사용하도록 강제하는 기술.  
+    어플리케이션 코드가 해당 기술에 종속됨.
 - 비침투적 기술 (noninvasive)
-    : 어플리케이션 로직을 담은 코드에 아무런 영향을 주지 않고 적용 가능. 기술에 종속적이지 않은 순수한 코드 유지 가능. 스프링은 비팀투적 기술
+    : 어플리케이션 로직을 담은 코드에 아무런 영향을 주지 않고 적용 가능. 기술에 종속적이지 않은 순수한 코드 유지 가능.  
+    스프링은 비침투적 기술
 ```
 4. DI를 이용한 테스트 방법 선택  
 항상 스프링 컨테이너 없이 테스트할 수 있는 방법을 우선적으로 고려하는 것이 좋다. 속도가 가장 빠르고 간결하다.  
