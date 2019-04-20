@@ -197,3 +197,146 @@ public class UserDao {
     * DI 작업을 위한 부가적인 코드가 필요하는 단점
 
 상황에 따라 적절하다고 판단되는 방법을 선택해서 사용하면 된다. 다만 그렇게 선택한 이유에 대해서는 분명한 이유와 근거가 있어야 한다. 분명하게 설명한 자신이 없다면 차라리 인터페이스를 만들어서 평범한 DI 구조로 만드는게 나을 수도 있다.
+
+### 템플릿과 콜백
+전략 패턴은 복잡하지만 바뀌지 않는 일정한 패턴을 갖는 작업 흐름이 존재하고 그중 일부분만 자주 바꿔서 사용해야 하는 경우에 적합한 구조다.
+
+전략 패턴의 기본 구조에 익명 내부 클래스를 활용한 방식을 스프링에서는 템플릿/콜백 패턴이라고 부른다. 전략 패턴의 컨텍스트를 템플릿이라 부르고, 익명 내부 클래스로 만들어지는 오브젝트를 콜백이라고 부른다.
+
+> 템플릿(template)은 어떤 목적을 위해 미리 만들어둔 모양이 있는 틀을 가르킨다. JSP는 HTML이라는 고정된 부분에 EL과 스크립릿이라는 변하는 부분을 넣은 일종의 템플릿 파일이다. 템플릿 메소드 패턴은 고정된 틀의 로직을 가진 템플릿 메소드를 슈퍼클래스에 두고, 바뀌는 부분을 서브클래스의 메소드에 두는 구조로 이뤄진다.
+
+> 콜백
+콜백(callback)은 실행되는 것을 목적으로 다른 오브젝트의 메소드에 전달되는 오브젝트를 말한다. 파라미터로 전달되지만 값을 참조하기 위한 것이 아니라 특정 로직을 담은 메소드를 실행시키기 위해 사용한다. 자바에선 메소드 자체를 파라미터로 전달할 방법은 없기 때문에 메소드가 담긴 오브젝트를 전달해야 한다. 그래서 functional object라고도 한다.
+
+### 템플릿/콜백의 특징
+여러 개의 메소드를 가진 일반적인 인터페이스를 사용할 수 있는 전략 패턴의 전략과 달리 템플릿/콜백 패턴의 콜백은 보통 단일 메소드 인터페이스를 사용한다. 템플릿의 작업 흐름 중 특정 기능을 위해 한 번 호출되는 경우가 일반적이기 때문이다. 
+
+콜백 인터페이스의 메소드에는 보통 파라미터가 있다. 이 파라미터는 템플릿의 작업 흐름 중에 만들어지는 컨텍스트 정보를 전달 받을 때 사용된다. jdbcContext에서는 Connection 오브젝트를 넘겨주고 PreparedStatement를 돌려받는다.
+
+<img src="img\template_callback_workflow.png">
+
+조금 복잡해 보이지만 DI 방식의 전략 패턴 구조라고 보면 간단하다. 클라이언트가 템플릿 메소드를 호출하면서 콜백 오브젝트를 전달하는 것은 메소드 레벨에서 일어나는 DI다. 템플릿이 사용할 콜백 인터페이스를 구현한 오브젝트를 메소드를 통해 주입해주는 DI 작업이 클라이언트가 템플릿의 기능을 호출하는 것과 동시에 일어난다.
+
+일반적인 DI라면 인스턴스 변수에 주입받아서 사용하지만, 템플릿/콜백 방식에는 매번 메소드 단위로 사용할 오브젝트를 새롭게 전달받는다는 것이 특징이다.
+
+### 편리한 콜백의 재활용
+템플릿/콜백 방식은 템플릿에 담긴 코드를 여기저기서 반복적으로 사용하는 원시적인 방법에 비해 많은 장점이 있다. 예를 들어 클라이언트인 DAO의 메소드는 간결해지고 최소한의 데이터 액세스 로직만 갖고 있게 된다. 그런데 템플릿/콜백 방식은 매번 익명 내부 클래스를 사용하기 때문에 상대적으로 작성하고 읽기가 조금 불편하다.
+
+익명 내부 클래스로 만든 콜백 오브젝트의 구조를 다시 보면 다음과 같다.
+```
+public void deleteAll() throws SQLException {
+    this.jdbcContext.workWithStatementStrategy(
+        new StatementStrategy() { 
+            public PreparedStatement makePreparedStatement(Connection c) throws SQLException {
+                return c.preparedStatement("delete from user"); // 변하는 SQL 문장
+            }
+        }
+    );
+}
+```
+
+deleteAll() 메소드를 통틀어서바뀔 수 있는 것은 오직 "delete from users"라는 문자열 뿐이기 때문에 다음과 같이 별도의 메소드로 분리할 수 있다.
+
+```
+public void deleteAll() throws SQLException {
+    executeSql("delete from users"); -> 변하는 SQL 문장
+}
+
+private void executeSql(final String query) throws SQLException {
+    this.jdbcContext.workWithStatementStrategy(
+        new StatementStrategy() { 
+            public PreparedStatement makePreparedStatement(Connection c) throws SQLException {
+                return c.preparedStatement(query); // 변하는 SQL 문장
+            }
+        }
+    );
+}
+```
+
+### 콜백과 템플릿의 결합
+executeSql() 메소드는 UserDao만 사용하기는 아깝다. 재사용 가능한 콜백을 담고 있는 메소드라면 DAO가 공유할 수 있는 템플릿 클래스 안으로 옮겨도 된다. 템플릿은 JdbcContext 클래스가 아니라 workWithStatementStrategy() 메소드이므로 JdbcContext 클래스로 콜백 생성과 템플릿 호출이 담긴 executeSql() 메소드를 옮겨도 된다.
+
+```
+public class JdbcContext {
+    ...
+    public void executeSql(final String query) throws SQLException {
+        workWithStatementStrategy(
+            ...
+        );
+    }
+}
+```
+
+UserDao의 메소드에서도 jdbcContext를 통해 executeSql() 메소드를 호출하도록 수정해야 한다.
+```
+public void deleteAll() throws SQLException {
+    this.jdbcContext.executeSql("delete from users");
+}
+```
+
+### 템플릿/콜백의 응용
+스프링의 많은 API나 기능을 살펴보면 템플릿/콜백 패턴을 적용한 경우를 많이 발견할 수 있다.
+
+DI는 순수한 스프링의 기술이 아니다. 기본적으로 객체지향의 장점을 잘 살려서 설계하고 구현하도록 도와주는 여러 가지 원칙과 패턴의 활용 결과일 뿐이다. 스프링은 단지 이를 편리하게 사용할 수 있도록 도와주는 컨테이너를 제공하고, 이런 패턴의 사용 방법을 지지해주는 것뿐이다. 템플릿/콜백 패턴도 DI와 객체지향 설계를 적극적으로 응용한 결과다. 스프링에는 다양한 자바 엔터프라이즈 기술에서 사용할 수 있도록 미리 만들어져 제공되는 수십 가지의 템플릿/콜백 클래스와 API가 있다.
+
+고정된 작업 흐름을 갖고 있으며서 여기저기서 자주 반복되는 코드가 있다면, 중복되는 코드를 분리할 방법을 생각해보자. 중복된 코드는 먼저 메소드로 분리하는 간단한 시도를 해본다. 그 중 일부 작업을 필요에 따라 바꾸어 사용해야 한다면 인터페이스를 사이에 두고 분리해서 전략 패턴을 적용하고 DI로 의존관계를 관리하도록 만든다. 그런데 바뀌는 부분이 한 애플리케이션 안에서 동시에 여러 종류가 만들어질 수 있다면 템플릿/콜백 패턴을 적용하는 것을 고려해볼 수 있다. 가장 전형적인 템플릿/콜백 패턴의 후보는 try/catch/finally 블록에서 리소스를 가져와 작업하는 코드이다.
+
+템플릿과 콜백을 찾아낼 때는, 변하는 코드의 경계를 찾고 그 경계를 사이에 두고 주고받는 일정한 정보가 있는지 확인을 하면 된다.
+
+템플릿/콜백 패턴은 다양한 작업에 손쉽게 활용할 수 있다. 콜백이라는 이름이 의미하는 것처럼 다시 불려지는 기능을 만들어서 보내고 템플릿과 콜백, 클라이언트 사이에 정보를 주고받는 일이 처음에는 조금 복잡하게 느껴질지도 모른다. 하지만 코드의 특성이 바뀌는 경계를 잘 살피고 그것을 인터페이스를 사용해 분리한다는, 가장 기본적인 객체지향 원칙에만 충실하면 어렵지 않게 템플릿/콜백 패턴을 만들어 활용할 수 있다.
+
+### 스프링의 JdbcTemplate
+스프링은 JDBC를 이용하는 DAO에서 사용할 수 있도록 준비된 다양한 템플릿과 콜백을 제공한다. 거의 모든 종류의 JDBC 코드에 사용 가능한 템플릿과 콜백을 제공할 뿐만 아니라, 자주 사용되는 패턴을 가진 콜백은 다시 템플릿에 결합시켜서 간단한 메소드 호출만으로 사용이 가능하도록 만들어져 있다.
+
+### update()
+JdbcTemplate의 콜백은 PreparedStatementCreator 인터페이스의 createPreparedStatement() 메소드다. 템플릿으로부터 Connection을 제공받아서 PreparedStatement를 만들어 돌려준다는 면에서 구조는 동일하다.
+
+```
+public void deleteAll() {
+    this.jdbcTemplate.update(
+        new PreparedStatementCreator() {
+            public PreparedStatement createPreparedStatement(Connection con)
+                throws SQLException {
+                return con.prepareStatement("delete from users");
+            }
+        }
+    );
+}
+```
+
+앞에서의 executeSql()은 SQL 문장만 전달하면 미리 준비된 콜백을 만들어서 템플릿을 호출하는 것까지 한번에 해줬는데 JdbcTemplate에도 기능이 비슷한 메소드가 존재한다. 메소드 이름은 동일하고 SQL 문장을 전달한다는 것만 다르다.
+```
+public void deleteAll() {
+    this.jdbcTemplate.update("delete from users");
+}
+```
+add()와 같이 파라미터를 바인딩해주는 기능을 가진 update() 메소드는 SQL과 함께 가변인자로 선언된 파라미터를 제공해주면 된다.
+```
+this.jdbcTemplate.update("insert into users(id, name, password) values(?, ?, ?)", user.get(), user.getName(), user.getPassword());
+```
+
+### queryForInt()
+getCount()는 SQL쿼리를 실행하고 ResultSet을 통해 결과 값을 가져오는 코드다. 이런작업 흐름을 가진 코드에서 사용할 수 있는 템플릿은 PreparedStatementCreator콜백과 ResultSetExtractor 콜백을 파라미터로 받는 query()메소드다.
+
+### queryForObject()
+getCount()처럼 단순한 값이 아니라 복잡한 User같은 오브젝트를 만들 때 사용한다. 이를 위해, ResultSetExtractor 콜백 대신 RowMapper콜백을 사용한다. 
+
+ResultSetExtractor와 RowMapper가 다른 점은 ResultSetExtractor은 ResultSet을 한 번 전달받아서 알아서 추출 작업을 모두 진행하고 최종 결과만 리턴해주면 되는 데 반해, RowMapper는 ResultSet의 로우 하나를 매핑하기 위해 여러번 호출될 수 있다는 점이다.
+```
+public User get(String id) {
+    return this.jdbcTemplate.queryForObject("select * from users where id = ?",
+        new Object[] {id}, // SQL에 바인딩 할 파라미터 값, 가변인자 대신 배열을 사용한다.
+        new RowMapper<User>() {
+            public User mapRow(ResultSet rs, int rowNum) throws SQLException {
+                User user = new User();
+                user.setId(rs.getString("id"));
+                user.setName(rs.getString("name"));
+                user.setPassword(rs.getString("password"));
+                return user;
+            }
+        });
+}
+```
+첫 번째 파라미터는 PreparedStatement를 만들기 위한 SQL이고, 두 번째는 SQL문에 바인딩할 값들이다. 가변인자를 사용하지 않은 이유는 뒤에 다른 파라미터가 있기 때문에 Object 타입의 배열을 사용해야 한다.
+
+조회 결과가 없는 예외상황은 queryForObject()가 SQL을 실행해서 받은 로우의 개수가 하나가 아니라면 EmptyResultDataAccessException예외를 발생시킨다.
