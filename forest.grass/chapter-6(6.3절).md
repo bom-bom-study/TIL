@@ -198,21 +198,16 @@ public Object invoke(Object proxy, Method method, Object[] args)
 #### 다이내믹 프록시를 만들어 보자
 ```{.java}
   public class UppercaseHandler implements InvocationHandler {
-		Object target;
+		Hello taget
 
-		private UppercaseHandler(Object target) {
+		private UppercaseHandler(Hello target) {
 			this.target = target;
 		}
 
 		public Object invoke(Object proxy, Method method, Object[] args)
-				throws Throwable {
-			Object ret = method.invoke(target, args);
-			if (ret instanceof String && method.getName().startsWith("say")) {
-				return ((String)ret).toUpperCase();
-			}
-			else {
-				return ret;
-			}
+			throws Throwable {
+			String ret = (String)method.invoke(target, args);
+			return ret.toUpperCase();
 		}
 	}
 
@@ -232,5 +227,167 @@ public Object invoke(Object proxy, Method method, Object[] args)
   - 3. 마지막 파리미터는 부가기능과 위임 관련 코드를 담고 있는 InvocationHandler 구현 오브젝트를 제공 해야한다. 타깃 오브젝트와, 부가기능이 있는 오브젝트를 넘겨준다.
 
 #### 다이내믹 프록시 확장
+- 다이내믹 프록시 방식이 직접 정의해서 만든 프록시보다 훨씬 유연하고 많은 장점이 있다.
+- Hello 인터페이스의 메소드 3개가 아니라 30개로 늘어나면 어떻게 될까?
+- 인터페이스가 바뀐다면 HelloUppercase처럼 클래스로 직접 구현한 프록시는 매번 코드를 추가해야한다.
+- 다이내믹 프록시를 생성해서 사용하는 코드는 전혀 손댈 게 없다.
+- 다이내믹 프록시가 만들어질 때 추가된 메소드가 자동으로 포함 될 것이고, 부가기능은 invoke() 메소드에서 처리되기 때문이다.
+- InvocationHandler 방식의 또 한 가지 장점은 타깃의 종류에 상관없이도 적용이 가능하다 점이다.
+- 리플렉션의 Method 인터페이스를 이용해 타깃의 메소드를 호출하는 것
+- InvocationHandler는 단일 메소드에서 모든 요청을 처리하기 때ㅜㅁㄴ에 어떤 메소드에 어떤 기능을 적용할지를 선택하는 과정이 필요할 수도 있다.
+- 호출하는 메소드의 이름, 파라미터의 개수와 타입, 리턴 타입 등의 정보를 가지고 부가적인 기능을 적용할 메소드를 선택할 수 있다.
+- 리턴 타입뿐 아니라 메소드의 이름도 조건을 걸 수 있다.
+```{.java}
+	public class UppercaseHandler implements InvocationHandler {
+		Object target;
 
+		private UppercaseHandler(Object target) {
+			this.target = target;
+		}
 
+		public Object invoke(Object proxy, Method method, Object[] args)
+				throws Throwable {
+			Object ret = method.invoke(target, args);
+			if (ret instanceof String && method.getName().startsWith("say")) {
+				return ((String)ret).toUpperCase();
+			}
+			else {
+				return ret;
+			}
+		}
+	}
+```
+
+#### 다이내믹 프록시를 이용한 트랜잭션 부가기능
+- UserServiceTx를 다이내믹 프록시 방식으로 변경해보자.
+- 기존의 방식은 서비스 인터페이스를 모두 구현해야 했고, 트랜잭션이 필요한 메소드마다 트랜잭션 코드를 중복적으로 작성해줘야 했다.
+- 그러므로 트랜잭션 부가기능을 다이내믹 프록시를 만들어 적용하는 방법이 효율적이다.
+- 트랜잭션 InvocationHandler 코드
+```{.java}
+	public class TransactionHandler implements InvocationHandler {
+		private Object target;
+		private PlatformTransactionMananger transactionManager;
+		private String pattern;
+
+		public void setTarget(Object target) {
+			this.target = target;
+		}
+
+		public void setTransactional(PlatformTransacationManager transactionManager) {
+			this.trasactionManager = transactionManager;
+		}
+
+		public void setPattern(String pattern) {
+			this.pattern = pattern;
+		}
+
+		public Object invoke(Object proxy, Method method, Object[] args)
+			throws Throwable {
+			if (method.getName().startsWith(pattern)) {
+				return invokeInTransaction(method, args);
+			} else {
+				return method.invoke(target, args);
+			}
+		}
+
+		private Object invokeInTransaction(Method method, Object[] args)
+			throws Throwable {
+				TransactionStatus status = this.transactionManager
+				.getTransaction(new DefaultTransactionDefinition());
+			try {
+				Object ret = method.invoke(target, args);
+				this.transactionManager.commit(status);
+				return ret;
+			} catch (InvocationTargetException e) {
+				this.transactionManager.rollback(status);
+				throw e.getTargetException();
+			}
+		}
+	}
+```
+- 요청을 위임할 타깃을 DI로 제공받도록 한다. 타깃을 저장할 변수는 Object로 선언했다.
+- 따라서 UserServiceImpl 외에 트랜잭션 적용이 푤요한 어떤 타깃 오브젝트에도 적용할 수 있다.
+- 롤백을 적용하기 위한 예외는 RuntimeException 대신에 InvocationTargetException을 잡도록 해야 한다.
+- 예외가 InvoactionTargetException으로 포장되어서 되돌아기 때문이다.
+
+#### 다이내믹 프록시를 위한 팩토리 빈
+- 다이내믹 프록시 오브젝트는 일반적인 스프링의 빈으로 등록할 방법이 없다.
+- 스프링의 빈은 기본적으로 클래스 이름과 프로퍼티로 정의된다.
+- 스프링은 지정된 클래스 일므을 가지고 리플렉션을 이용해서 해당 클래스의 오브젝트를 만든다.
+- 다이내믹 프록시는 Proxy 클래스의 newProxyInstance()라는 스태틱 팩토리 메소드를 통해서만 만들 수 있따.
+
+#### 팩토리 빈
+- 스프링은 클래스 정보를 가지고 디폴트 생성자를 통해 오브젝트를 만드는 방법 외에도 빈을 만들 수 있는 여러 가지 방법을 제공한다.
+- 팩토리 빈을 이용한 빈 생성방법으로 빈을 만들수 있다.
+- 팩토리 빈이란 스프링을 대신해서 오브젝트의 생성로직을 담당하도록 만들어진 특별한 빈을 말한다.
+- 가장 간단한 방법은 스프링의 FactoryBean이라는 인터페이스를 구현하는 것이다.
+```{.java}
+public interface FactoryBean<T> {
+	T getObject() throws Exception;
+	Class<? exctends T> getObjectType();
+	boolean isSingleton();
+}
+```
+- 생성자가 private로 막혀있고 스태틱 팩토리 메소드로 선언되어 있는 경우 클래스를 직접 스프링 빈으로 등록해서 사용할 수 없다.
+- private 생성자를 가진 클래스도 빈으로 등록해주면 리플렉션을 이용해 오브젝트를 만들어준다.
+- 하지만 생성자를 private으로 만들었따는 것은 스태틱 메소드를 통해 오브젝트가 만들어져야 하는 중요한 이유가 있기 때문이므로 이를 무시하고 오브젝트를 강제로 생성하면 위험하다.
+- 팩토리 빈 코드
+```{.java}
+//스태틱 팩토리 메소드를 가진 클래스
+public class Message {
+	String text;
+	
+	private Message(String text) {
+		this.text = text;
+	}
+	
+	public String getText() {
+		return text;
+	}
+
+	public static Message newMessage(String text) {
+		return new Message(text);
+	}
+}
+
+//bean factory
+public class MessageFactoryBean implements FactoryBean<Message> {
+	String text;
+	
+	public void setText(String text) {
+		this.text = text;
+	}
+
+	public Message getObject() throws Exception {
+		return Message.newMessage(this.text);
+	}
+
+	public Class<? extends Message> getObjectType() {
+		return Message.class;
+	}
+
+	public boolean isSingleton() {
+		return true;
+	}
+}
+
+//xml bean 설정
+<bean id="message" class="springbook.learningtest.spring.factorybean.MessageFactoryBean">
+		<property name="text" value="Factory Bean" />
+</bean>
+
+//message bean
+@Test
+public void getMessageFromFactoryBean() {
+	Object message = context.getBean("message");
+	assertThat(message, is(Message.class));
+	assertThat(((Message)message).getText(), is("Factory Bean"));
+}
+	
+//bean factory bean
+@Test
+public void getFactoryBean() throws Exception {
+	Object factory = context.getBean("&message");
+	assertThat(factory, is(MessageFactoryBean.class));
+}
+```
