@@ -391,3 +391,91 @@ public void getFactoryBean() throws Exception {
 	assertThat(factory, is(MessageFactoryBean.class));
 }
 ```
+
+#### 다이내믹 프록시를 만들어주는 팩토리 빈
+- Proxy의 newProxyInstrance() 메서드를 통해서만 생성이 가능한 다이내믹 프록시 오브젝트는 일방적인 방법으로는 스프링의 빈으로 등록할 수없다.
+- 대신 팩토리 빈을 사용하면 다이내믹 프록시 오브젝트를 스프링의 빈으로 만들어줄 수가 있다.
+- 스프링 빈에는 팩토리 빈과 UserServiceImpl만 빈으로 등록한다. 
+- 팩토리 빈은 다이내믹 프록시가 위임할 타깃 오브젝트인 UserServiceImpl에 대한 레퍼런스를 프로퍼티를 통해 DI 받아둬야 한다.
+- 다이내믹 프록시와 함께 생성할 TransactionHandler에게 타깃 오브젝트를 전달해줘야 하기 때문이다.
+- 그외에도 다이내믹 프록시나 TransactionHandler를 만들 때 필요한 정보는 팩토리 빈의 프로퍼티로 설정해뒀다가 다이내믹 프록시를 만들면서 전달해줘야 한다.
+
+#### 트랜잭션 프록시 팩토리 빈
+```{.java}
+public class TxProxyFactoryBean implements FactoryBean<Object> {
+	Object target;
+	PlatformTransactionManager transactionManager;
+	String pattern;
+	Class<?> serviceInterface;
+	
+	public void setTarget(Object target) {
+		this.target = target;
+	}
+
+	public void setTransactionManager(PlatformTransactionManager transactionManager) {
+		this.transactionManager = transactionManager;
+	}
+
+	public void setPattern(String pattern) {
+		this.pattern = pattern;
+	}
+
+	public void setServiceInterface(Class<?> serviceInterface) {
+		this.serviceInterface = serviceInterface;
+	}
+
+	// FactoryBean 인터페이스 구현 메소드
+	public Object getObject() throws Exception {
+		TransactionHandler txHandler = new TransactionHandler();
+		txHandler.setTarget(target);
+		txHandler.setTransactionManager(transactionManager);
+		txHandler.setPattern(pattern);
+		return Proxy.newProxyInstance(
+			getClass().getClassLoader(),new Class[] { serviceInterface }, txHandler);
+	}
+
+	public Class<?> getObjectType() {
+		return serviceInterface;
+	}
+
+	public boolean isSingleton() {
+		return false;
+	}
+}
+
+	<bean id="userService" class="springbook.user.service.TxProxyFactoryBean">
+		<property name="target" ref="userServiceImpl" />
+		<property name="transactionManager" ref="transactionManager" />
+		<property name="pattern" value="upgradeLevels" />
+		<property name="serviceInterface" value="springbook.user.service.UserService" />
+	</bean>
+```
+
+#### 프록시 팩토리 빈 방식의 장점
+- 장점
+	- 프록시 팩토리 빈의 재사용
+		- TransactionHandler를 이용하는 다이내믹 프록시를 생성해주는 TxPrxoyFactoryBean은 코드의 수정 없이도 다양한 클래스에 적용할 수 있다.
+		- 타깃 오브젝트에 맞는 프로퍼티 정보를 설정해서 빈으로 등록해주기만 하면 된다.
+		- 하나 이상의 TxProxyFactoryBean을 동시에 빈으로 등록해도 상관없다.
+		- 팩토리 빈이기 때문에 각 빈의 타입은 타깃 인터페이스와 일치 한다.
+		- 타깃의 모든 메소드에 트랜잭션 기능을 적용하려면 pattern 값을 빈 문자열을 사용해주면 된다.
+		- 코드 한 줄 만들지 않고 기존 코드에 부가적인 기능을 추가해줄 수 있다는 건 정 말 매력적인 방법이 아닐 수 없다.
+	- 데코레이터 패턴의 두가지 문제점을 해결 해준다.
+		- 첫째 프록시를 적용할 대상이 구현하고 있는 인터페이스를 구현하는 프록시 클래스를 일일이 만들어야한다는 번거로움
+		- 둘째 부가적인 기능이 여러 메소드에 반복적으로 나타나게 돼서 코드 중복의 문제가 발생한다는 점
+		- 위의 두가지 문제점을 프록시 팩토리 빈이 해결 해준다.
+- 이 과정에서 스프링 DI는 매우 중요한 역할을 한다.
+- 프록시를 사용하려면 DI가 필요한 것은 물론이고 효율적인 프록시 생성을 위한 다이내믹 프록시를 사용하려고 할 때도 팩토리 빈을 통한 DI는 필수다.
+
+#### 프록시 팩토리 빈의 한계
+- 프록시를 통해 타깃에 부가기능을 제공하는 것은 메소드 단위로 일어나는 일이다.
+- 하나의 클래스 안에 존재하는 여러 개의 메소드에 부가기능을 한 번에 제공하는 건 어렵지 않게 가능했다.
+- 하지만 한 번에 여러 개의 클래스에 공통적인 부가기능을 제공하는 일은 지금까지 살펴본 방법으로는 불가능하다.
+- 트랜잭션과 같이 비즈니스 로직을 담은 많은 클래스의 메소드에 적용할 필요가 있다면 거의 비슷한 프록시 팩토리 빈의 설절이 중복되는 것을 막을 수 없다.
+- 하나의 타깃에 여러 개의 부가기능을 적용하려고 할 때도 문제다.
+	- ex)프록시, 보안, 기능 검사, 부가기능 등을 동시에 추가 하고 싶을때 문제가 발생
+- 적용 대상이 증가 할 수록 그만큼 XML 빈 설정 코드가 늘어난다.
+- XML 빈 설정 코드가 많아 질수록 유지보수가 힘들어 질 수 있다.
+- 비슷한 빈설정들이 중복으로 되니 먼가 찜찜하다.
+- 또 한 가지 문제점은 TransactionHandler 오브젝트가 프록시 팩토리 빈 개수만큼 만들어진다는 점이다.
+- 트랜잭션 부가기능을 제공하는 동일한 코드임에도 불구하고 타깃 오브젝트가 달라지면 새로운 TransactionHandler 오브젝트를 만들어야한다.
