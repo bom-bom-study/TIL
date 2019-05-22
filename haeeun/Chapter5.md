@@ -6,7 +6,11 @@
 * 사용자가 처음 가입하면 BASIC 레벨, 이후 활동에 따라 업그레이드 될 수 있다.
 * 가입 후 50회 이상 로그인 하면 BASIC에서 SILVER 레벨이 된다.
 * SILVER 레벨이면서 30번 이상 추천을 받으면 GOLD 레벨이 된다.
+<<<<<<< HEAD
 * 사용자 레벨의 변경 작업은 일정한 주기를 가지고 일괄적으로 진행된다. 변경 작업 전에는 조건을 충족하더라도 레벨의 변경이 일어나지 않는다.
+=======
+* 사용자 레벨의 벼녕 작업은 일정한 주기를 가지고 일괄적으로 진행된다. 변경 작업 전에는 조건을 충족하더라도 레벨의 변경이 일어나지 않는다.
+>>>>>>> 815c87d66a8181dea7217f701d835b761c84cb40
 #### 5.1.1 필드 추가
 ##### 1. Level 이늄  
 User 클래스에 사용자의 레벨을 저장할 필드 추가  
@@ -431,7 +435,11 @@ public void upgradeLevels() throws Exception {
         c.commit();
     } catch (Exception e) {
         c.rollback();
+<<<<<<< HEAD
         throw e;
+=======
+        thrwo e;
+>>>>>>> 815c87d66a8181dea7217f701d835b761c84cb40
     } finally {
         // 스프링 유틸리티 메소드를 이용해 DB 커넥션을 닫음
         DataSourceUtils.releaseConnection(c, dataSource);
@@ -620,6 +628,7 @@ private void sendUpgradeEMail(User user) {
 ```
 스프링의 예외 처리 원칙에 따라 JavaMail을 처리하는 중에 발생한 각종 예외를 MailException이라는 런타임 예외로 포장해서 던져주기 때문에 try/catch가 필요 없다.  
 MailMessage 타입의 SimpleMailMessage 오브젝트를 만들어서 메시지를 넣은 뒤 JavaMailSender 타입 오브젝트의 send() 메소드에 전달해주면 된다. 메시지는 간단한 텍스트가 전부이므로 MailMessage 인터페이스를 구현한 JavaMailSenderImpl의 오브젝트를 만들어 사용한다. JavaMailSenderImpl은 내부적으로 JavaMail API를 이용해 메일을 전송해준다.  
+
 
 하지만 아직 JavaMail API를 이용하는 JavaMailSenderImpl 클래스의 오브젝트를 직접 사용하기 때문에 스프링의 DI를 적용할 필요가 있다.  
 sendUpgradeMail()에는 JavaMailSenderImpl 클래스가 구현한 MailSender 인터페이스만 남기고, 구체적인 메일 전송 구현을 담은 클래스 정보는 코드에서 모두 제거한다. UserService에 MailSender 인터페이스 타입의 변수를 만들고 수정자 메소드를 추가해 DI가 가능하도록 만든다.  
