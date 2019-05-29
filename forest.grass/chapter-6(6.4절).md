@@ -479,3 +479,9 @@ public class TxProxyFactoryBean implements FactoryBean<Object> {
 - 비슷한 빈설정들이 중복으로 되니 먼가 찜찜하다.
 - 또 한 가지 문제점은 TransactionHandler 오브젝트가 프록시 팩토리 빈 개수만큼 만들어진다는 점이다.
 - 트랜잭션 부가기능을 제공하는 동일한 코드임에도 불구하고 타깃 오브젝트가 달라지면 새로운 TransactionHandler 오브젝트를 만들어야한다.
+
+
+#### ProxyFactoryBean
+- 스프링은 일관된 방법으로 프록시를 만들 수 있게 도와주는 추상 레이어를 제공한다.
+- 생성된 프록시는 스프링의 빈으로 등록돼야 한다.
+- 스프링은 프록시 오브젝트를 생성해주는 기술을 추상화한 팩토리 빈을 제공해준다.
