@@ -485,3 +485,12 @@ public class TxProxyFactoryBean implements FactoryBean<Object> {
 - 스프링은 일관된 방법으로 프록시를 만들 수 있게 도와주는 추상 레이어를 제공한다.
 - 생성된 프록시는 스프링의 빈으로 등록돼야 한다.
 - 스프링은 프록시 오브젝트를 생성해주는 기술을 추상화한 팩토리 빈을 제공해준다.
+- 스프링의 ProxyFactoryBean은 프록시를 생성해서 빈 오브젝트를 등록하게 해주는 팩토리 빈이다.
+- ProxyFactoryBean은 순수하게 프록시를 생성하는 작업만을 담당하고 프록시를 통해 제공해줄 부가기능은 별도의 빈에 둘 수 있다.
+- ProxyFactoryBean이 생성하는 프록시에서 사용할 부가기능은 MethodInterceptor 인터페이스를 구현해서 만든다.
+- InvocationHandler의 invoke() 메소드는 타깃 오브젝트에 대한 정보를 제공하지 않는다. 따라서 타깃은 InvocationHandler를 구현한 클래스가 직접 알고 있어야 한다.
+- MehodInterceptor의 invoke() 메소드는 ProxyFactoryBean으로부터 타깃 오브젝트에 대한 정보까지도 함께 제공 받는다.
+- MethodInterceptor 오브젝트는 타깃이 다른 여러 프록시에서 함께 사용할수 있고, 싱글톤 빈으로 등록 가능하다.
+
+#### 어드바이스:타깃이 필요 없는 순수한 부가기능
+- 
