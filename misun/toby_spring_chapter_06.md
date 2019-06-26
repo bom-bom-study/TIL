@@ -238,7 +238,6 @@ public interface Pointcut {
         <property name="mappedCl assName" value="*Servicelmpl" />// 클래스 이름 패턴
         <property name="mappedName" value= "upgrade*" /> // 메소드 이름 때턴 
         </bean>
-
     ```
 - 어드바이스와 어드바이저
     - 어드바이스인 transactionAdvice의 빈은 수정할게 없다
@@ -287,29 +286,25 @@ public interface Pointcut {
         - (int, int) : 메소드 파라미터의 타입 패턴. '.'로 구분. 생략 불가. 순서대로 적는다. 파라미터가 없는 메소드면 ()로 표기. 모두 다 허용은 '..' 파라미터 조건 생략은'...'
 
   - ``` java
-         int minus(int,int)
-    ```
-        - 어떤 접근제한자이든, 어떤 클래스에 정의됐든, 어떤 예외를 던지든 다 통과
+      int minus(int,int); // 어떤 접근제한자이든, 어떤 클래스에 정의됐든, 어떤 예외를 던지든 다 통과
+      ```
   - ``` java
-         * minus(int,int)
+         * minus(int,int); // 리턴타입 상관 없음
     ```  
-        - 리턴타입 상관 없음
    - ``` java
-         * minus(..)
+         * minus(..); // 파라미터 종류, 개수 상관 없음
     ```         
-        - 파라미터 종류, 개수 상관 없음
+        
   - ``` java
-         * *(..)
+         * *(..); //리턴 타입. 따라미터， 메쓰 이름에 상관없이 모든 메알 조건을 다 허용핸 포인트킷 표현식
     ``` 
-        - 리턴 타입. 따라미터， 메쓰 이름에 상관없이 모든 메알 조건을 다 허용핸 포인트킷 표현식
-
 - 2. bean() : 클래스와 메소드라는 기준을 넘어서 포인트컷을 비교
 - 3. 애노테이션 비교 : 특정 애노테이션이 타입 메소드 파라미터에 적용되어 있는 것을 보고 메소드를 선정하게 하는 포인트컷
     - ``` java
-        @annotation(org .springframework .transaction .annotation.Transactional)
+        @annotation(org .springframework .transaction .annotation.Transactional);
 
     ```
-    - @Transactional이라는 애노테이션이 적용된 메소드를 선정
+- @Transactional이라는 애노테이션이 적용된 메소드를 선정
    - ``` java
          <property name="mappedCl assName" value="ServiceImpl"/> 
          <property name="mappedName" value="upgrade*" />
