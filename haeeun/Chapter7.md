@@ -4,10 +4,10 @@
 - SQL 변경이 필요한 상황이 발생하면 SQL을 담고 있는 DAO 코드가 수정될 수 밖에 없으므로 SQL과 DAO의 분리가 필요함
 ### 7.1.1 XML 설정을 이용한 분리
 #### 개별 SQL 프로퍼티 방식
-- SQL을 외부로 빼서 프로퍼티로 정의하
+- SQL을 외부로 빼서 프로퍼티로 정의함
 - add() 에서는 외부로부터 DI 받은 SQL 문장을 담은 메소드 사용
 - XML 설정은 userDao 빈에 프로퍼티 추가
-- 매번 새로운 SQL이 필요할 때마다 프로터피를 추가하고 DI를 위한 변수와 수정자 메소드를 만들어야 하
+- 매번 새로운 SQL이 필요할 때마다 프로터피를 추가하고 DI를 위한 변수와 수정자 메소드를 만들어야 함
 
 #### SQL 맵 프로퍼티 방식
 - SQL을 하나의 컬렉션으로 담아두는 방식
@@ -121,7 +121,8 @@ cf) **직렬화** : 자바 오브젝트를 바이트 스트림으로 바꾸는 �
         ```
     3. 오브젝트를 만드는 시점에서 초기화 메소드 호출
         ```java
-        XmlSqlService sqlProvider =new Xm1SqlService(); sq1Provider.setSq1mapFile( 닝q띠1뻐mn뻐l떠ap .xm1"); sqlProvider.loadSql();
+        XmlSqlService sqlProvider =new Xm1SqlService(); 
+        sq1Provider.setSq1mapFile( 닝q띠1뻐mn뻐l떠ap .xm1"); sqlProvider.loadSql();
         ```
 - XmlSqlService 오브젝트는 빈이므로 제어권이 스프링에 있어서 생성과 초기화도 스프링에 맡겨야 한다. 
 - **스프링의 빈 후처리기** : 스프링 컨테이너가 빈을 생성한 뒤 부가적인 작업을 수행할 수 있게 해주는 특별한 기능
