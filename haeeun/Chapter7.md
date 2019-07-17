@@ -50,6 +50,23 @@ public class UserDaoJdbc implements UserDao {
 - SqlService 인터페이스에는 어떤 기술적인 조건이나 제약사항도 담겨 있지 않다.
 - 어떤 방법을 사용하든 DAO가 요구하는 SQL을 돌려주기만 하면 된다. 
 - SqlService 인터페이스를 구현하는 클래스에서 Map타입 프로퍼티를 추가하고 맵에서 SQL을 읽어서 돌려주도록 구현
+```java
+public class SimpleSqlService implements SqlService{
+    private Map<String, String> sqlMap;
+    
+    public void setSqlMap(Map<String, String> sqlMap) {
+        this.sqlMap = sqlMap;
+    }
+    
+    public String getSql(String key) throws SqlRetrievalFailureException {
+        String sql = sqlMap.get(key);
+        if (sql == null)
+            throw new SqlRetrievalFailureException(key + "에 대한 SQL을 찾을 수 없습니다");
+        else
+            return sql;
+    }
+}
+```
 
 ## 7.2 인터페이스의 분리와 자기참조 빈
 ### 7.2.1 XML 파일 매핑
